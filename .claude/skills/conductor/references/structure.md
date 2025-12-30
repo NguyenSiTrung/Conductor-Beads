@@ -21,6 +21,7 @@ conductor/
         ├── spec.md         # Requirements and acceptance criteria
         ├── plan.md         # Phased task list with status
         ├── implement_state.json  # Phase-aware implementation resume state (if in progress)
+        ├── implement_parallel_state.json  # Parallel execution state (if using parallel mode)
         ├── handoff_*.md    # Section handoff documents (if any)
         ├── blockers.md     # Block history log (if any)
         ├── skipped.md      # Skipped tasks log (if any)
@@ -52,6 +53,7 @@ Throughout conductor files:
 | `conductor/tracks/<id>/spec.md` | Requirements |
 | `conductor/tracks/<id>/plan.md` | Phased task list |
 | `conductor/tracks/<id>/implement_state.json` | Phase-aware implementation resume state |
+| `conductor/tracks/<id>/implement_parallel_state.json` | Parallel execution state (agents, batches, worktrees) |
 | `conductor/tracks/<id>/handoff_*.md` | Section handoff documents |
 | `conductor/tracks/<id>/blockers.md` | Block history log |
 | `conductor/tracks/<id>/skipped.md` | Skipped tasks log |
@@ -71,6 +73,7 @@ The only differences are command syntax:
 | `/conductor:setup` | `/conductor-setup` |
 | `/conductor:newTrack` | `/conductor-newtrack` |
 | `/conductor:implement` | `/conductor-implement` |
+| `/conductor:implementParallel` | `/conductor-implement-parallel` |
 | `/conductor:status` | `/conductor-status` |
 | `/conductor:revert` | `/conductor-revert` |
 | `/conductor:handoff` | `/conductor-handoff` |

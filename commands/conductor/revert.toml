@@ -118,7 +118,18 @@ Your workflow MUST anticipate and handle common non-linear Git histories, such a
 1.  **Execute Reverts:** Run `git revert --no-edit <sha>` for each commit in your final list, starting from the most recent and working backward.
 2.  **Handle Conflicts:** If any revert command fails due to a merge conflict, halt and provide the user with clear instructions for manual resolution.
 3.  **Verify Plan State:** After all reverts succeed, read the relevant `plan.md` file(s) again to ensure the reverted item has been correctly reset. If not, perform a file edit to fix it and commit the correction.
-4.  **Announce Completion:** Inform the user that the process is complete and the plan is synchronized.
+4.  **Clean Up Parallel State (if applicable):**
+    - Check if `implement_parallel_state.json` exists for this track
+    - If reverting tasks that were run in parallel:
+      - Remove associated worktrees: `git worktree remove worktrees/<track_id>/<task_key>`
+      - Delete task branches: `git branch -d track/<track_id>/<task_key>`
+      - Remove task entries from parallel state file
+    - If reverting entire track in parallel mode:
+      - Remove all track worktrees
+      - Delete integration branch: `git branch -d track/<track_id>/integration`
+      - Delete `implement_parallel_state.json`
+    - Release any file leases via MCP Agent Mail (if active)
+5.  **Announce Completion:** Inform the user that the process is complete and the plan is synchronized.
 
 ---
 

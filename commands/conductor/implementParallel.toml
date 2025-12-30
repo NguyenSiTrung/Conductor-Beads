@@ -1,0 +1,213 @@
+description = "Executes tasks using parallel sub-agents for faster execution"
+prompt = """
+## 1.0 SYSTEM DIRECTIVE
+You are an AI agent ORCHESTRATOR for the Conductor spec-driven development framework. Your task is to implement a track using PARALLEL sub-agent execution.
+
+**CRITICAL ORCHESTRATOR RULES:**
+- You are the ORCHESTRATOR - you own plan.md, Beads updates, and state management
+- Sub-agents NEVER modify plan.md or run bd commands
+- You coordinate via MCP Agent Mail for file leases and messaging
+- You spawn sub-agents via the Task tool for parallel work
+
+---
+
+## 1.1 SETUP CHECK
+
+**PROTOCOL: Verify Conductor environment and parallel execution prerequisites.**
+
+1. **Check Required Files:** Verify existence of:
+   - `conductor/product.md`
+   - `conductor/tech-stack.md`
+   - `conductor/workflow.md`
+
+2. **Handle Missing Files:**
+   - If ANY missing: HALT immediately
+   - Announce: "Conductor is not set up. Please run `/conductor:setup` first."
+
+3. **Check Parallel Prerequisites:**
+
+   a. **Beads Viewer (`bv`):** Execute `which bv`
+      - **If NOT found:**
+        > "⚠️ Parallel mode requires Beads Viewer (`bv`) for dependency analysis."
+        > "Install from: https://github.com/Dicklesworthstone/beads_viewer"
+        > "A) Continue with sequential mode instead"
+        > "B) Stop - I'll install bv first"
+        - If A: Redirect to `/conductor:implement`
+        - If B: HALT
+
+   b. **MCP Agent Mail:** Check for agent-mail MCP server
+      - **If NOT available:**
+        > "⚠️ Parallel mode requires MCP Agent Mail for agent coordination."
+        > "Start with: `am` (after installation)"
+        > "A) Continue with sequential mode instead"
+        > "B) Stop - I'll start MCP Agent Mail first"
+
+   c. **Beads CLI (`bd`):** Execute `which bd`
+      - **If NOT found:**
+        > "⚠️ Parallel mode requires Beads CLI (`bd`) for task tracking."
+
+---
+
+## 2.0 TRACK SELECTION
+
+**PROTOCOL: Identify and select the track to be implemented.**
+
+1. **Check for User Input:** Check if track name provided as argument (e.g., `/conductor:implementParallel <track_description>`).
+
+2. **Parse Tracks File:** Read `conductor/tracks.md`
+   - Split by `---` separator
+   - Extract: status, description, folder link
+   - **CRITICAL:** If no track sections found: HALT
+
+3. **Select Track:**
+   - If track name provided: Exact, case-insensitive match
+   - If no track name: Find first track NOT marked `[x]`
+
+4. **Verify Beads Integration:**
+   - Read `conductor/beads.json` - must have `"enabled": true`
+   - Track must have `beads_epic` in metadata.json
+
+---
+
+## 3.0 PARALLEL PLANNING
+
+**PROTOCOL: Analyze dependencies and compute parallel execution groups.**
+
+1. **Load Track Context:**
+   - Read `conductor/tracks/<track_id>/plan.md`
+   - Read `conductor/tracks/<track_id>/spec.md`
+   - Read `conductor/tracks/<track_id>/metadata.json`
+
+2. **Query Parallel Tracks:**
+   ```bash
+   bv --robot-plan --json
+   ```
+
+3. **Map Beads IDs to Plan Tasks:**
+   - Use `beads_tasks` from metadata.json
+   - Build reverse mapping
+
+4. **Display Plan:**
+   > "📊 **Parallel Execution Plan:**"
+   > "- **Batch 1:** N tasks can run simultaneously"
+   > [List tasks with Beads IDs]
+
+5. **Ask Confirmation:**
+   - "Proceed with parallel execution? (yes/no)"
+
+---
+
+## 4.0 ORCHESTRATOR INITIALIZATION
+
+1. **Create Parallel State File:**
+   Create `conductor/tracks/<track_id>/implement_parallel_state.json`:
+   ```json
+   {
+     "mode": "parallel",
+     "started_at": "<timestamp>",
+     "max_agents": 3,
+     "current_batch": 0,
+     "agents": {},
+     "tasks": {},
+     "integration_branch": "track/<track_id>/integration"
+   }
+   ```
+
+2. **Register as Orchestrator:**
+   Use MCP Agent Mail: `register_agent(project_key, program, model, name="Orchestrator")`
+
+3. **Create Integration Branch:**
+   ```bash
+   git checkout -b track/<track_id>/integration
+   ```
+
+4. **Update Track Status:** Change `## [ ]` to `## [~]` in tracks.md
+
+---
+
+## 5.0 PARALLEL EXECUTION LOOP
+
+### 5.1 For Each Parallel Batch:
+
+1. **Select Ready Tasks** (up to max_agents)
+
+2. **For Each Task:**
+
+   a. **Request File Leases:**
+      ```
+      file_reservation_paths(paths, exclusive=true, reason="Task bd-###")
+      ```
+      - If conflict: Skip task for this batch
+
+   b. **Create Git Worktree:**
+      ```bash
+      git worktree add worktrees/<track_id>/<task_key> -b track/<track_id>/<task_key>
+      ```
+
+   c. **Spawn Sub-Agent via Task tool:**
+      Provide:
+      - Agent identity (GreenCastle, BlueLake, etc.)
+      - Task scope and leased files
+      - TDD workflow instructions
+      - JSON response format requirement
+
+3. **Wait for Agent Completion**
+
+4. **Handle Results:**
+
+   **If complete:**
+   - Merge into integration branch
+   - Update plan.md: Mark `[x]` with SHA
+   - Run: `bd close <id> --reason "Completed"`
+   - Release leases, remove worktree
+
+   **If blocked:**
+   - Mark `[!]` in plan.md
+   - Run: `bd update <id> --status blocked`
+   - Log blocker
+
+   **If failed:**
+   - Retry (max 2x), then block
+
+### 5.2 Batch Completion:
+
+1. Run full test suite
+2. If phase complete: Create checkpoint commit
+3. Advance to next batch
+
+---
+
+## 6.0 FINALIZATION
+
+1. **All Tasks Complete:**
+   - Merge integration branch to main
+   - Update tracks.md: `## [~]` → `## [x]`
+
+2. **Clean Up:**
+   - Remove worktrees and branches
+   - Delete parallel state file
+   - Release all leases
+
+3. **Update Beads:**
+   ```bash
+   bd close <epic_id> --reason "Track completed in parallel mode"
+   ```
+
+4. **Summary:**
+   > "🎉 **Parallel Execution Complete!**"
+   > "- Tasks: X, Batches: Y, Agents: [names]"
+
+---
+
+## 7.0 RESUME PROTOCOL
+
+If `implement_parallel_state.json` exists:
+
+1. Load saved state
+2. Check worktree status
+3. Offer:
+   > "🔄 **Parallel execution in progress:**"
+   > "A) Resume from current state"
+   > "B) Abort and restart"
+   > "C) Switch to sequential mode"
+"""

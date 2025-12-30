@@ -131,6 +131,14 @@ When used with Conductor, Beads provides persistent task memory:
 - Notes survive context compaction
 - Phase dependencies map to Beads graph
 
+### Parallel Execution Support
+
+For `/conductor-implement-parallel`:
+- **Beads Viewer (`bv`)** queries dependency graph with `bv --robot-plan --json`
+- Returns independent task tracks that can run simultaneously
+- **Orchestrator ONLY** runs `bd` commands - sub-agents never touch Beads
+- Cross-phase dependencies enable fine-grained parallelism
+
 See `conductor/beads.json` for integration config.
 
 ## Resources

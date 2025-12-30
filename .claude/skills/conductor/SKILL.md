@@ -7,11 +7,13 @@ description: |
   - Files like `conductor/tracks.md`, `conductor/product.md`, `conductor/workflow.md` exist
   - User asks about project status, implementation progress, or track management
   - User wants to organize development work with TDD practices
-  - User invokes `/conductor-*` commands (setup, newtrack, implement, status, revert, validate, block, skip, revise, archive, export, refresh)
+  - User invokes `/conductor-*` commands (setup, newtrack, implement, implement-parallel, status, revert, validate, block, skip, revise, archive, export, refresh)
   - User mentions documentation is outdated or wants to sync context with codebase changes
+  - User wants to run tasks in parallel or mentions multi-agent execution
   
   Interoperable with Gemini CLI extension and Claude Code commands.
   Integrates with Beads for persistent task memory across sessions.
+  Supports parallel execution with MCP Agent Mail for agent coordination.
 ---
 
 # Conductor: Context-Driven Development
@@ -85,6 +87,7 @@ fi
 | "Set up this project" | `/conductor-setup` |
 | "Create a new feature" | `/conductor-newtrack [desc]` |
 | "Start working" / "Implement" | `/conductor-implement [id]` |
+| "Run in parallel" / "Multi-agent" | `/conductor-implement-parallel [id]` |
 | "What's the status?" | `/conductor-status` |
 | "Undo that" / "Revert" | `/conductor-revert` |
 | "Check for issues" | `/conductor-validate` |
@@ -95,6 +98,31 @@ fi
 | "Archive completed" | `/conductor-archive` |
 | "Export summary" | `/conductor-export` |
 | "Docs are outdated" / "Sync with codebase" | `/conductor-refresh` |
+
+## Parallel Mode
+
+For tracks with multiple independent tasks, use `/conductor-implement-parallel`:
+
+### When to Use Parallel Mode
+- Track has 3+ tasks that don't depend on each other
+- Tasks touch different files (no overlap)
+- You want faster execution with multiple sub-agents
+
+### Prerequisites
+- `bv` (Beads Viewer) for parallel track detection
+- MCP Agent Mail running (`am` command)
+- `bd` (Beads CLI) for task tracking
+
+### Quick Start
+```bash
+# Start MCP Agent Mail server
+am
+
+# Run parallel implementation
+/conductor-implement-parallel auth_20241229 --max-agents=3
+```
+
+See [references/parallel-execution.md](references/parallel-execution.md) for details.
 
 ## References
 

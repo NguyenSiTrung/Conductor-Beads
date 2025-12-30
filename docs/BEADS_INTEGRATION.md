@@ -242,12 +242,49 @@ This bypasses the 30-second debounce and ensures changes persist immediately.
 | `/conductor-setup` | `bd init` | Run both |
 | `/conductor-newtrack` | `bd create` (epic + tasks) | Create track + epic with `--design`, `--acceptance` |
 | `/conductor-implement` | `bd ready`, `bd update`, `bd close` | Query ready, track progress, complete |
+| `/conductor-implement-parallel` | `bv --robot-plan`, `bd ready`, `bd close` | Query parallel tracks, Orchestrator updates Beads |
 | `/conductor-status` | `bd ready`, `bd show` | Combine outputs, read notes for context |
 | `/conductor-block` | `bd update --status blocked` | Sync both with structured notes |
 | `/conductor-skip` | `bd close` or `bd update` | Mark in both based on skip reason |
 | `/conductor-handoff` | `bd update --notes`, `bd sync` | Save context + force sync |
 | `/conductor-revert` | `bd reopen` | Sync status |
 | `/conductor-archive` | `bd compact --auto` | Archive track + compact |
+
+## Parallel Execution Integration
+
+When using `/conductor-implement-parallel`, Beads plays a critical role:
+
+### Pre-Execution
+- `bv --robot-plan --json` queries the Beads dependency graph
+- Returns tasks grouped by independent tracks (can run in parallel)
+- Identifies "highest impact" tasks that unblock the most downstream work
+
+### During Execution
+- **Orchestrator ONLY** updates Beads - sub-agents never run `bd` commands
+- Sub-agents report completion via JSON response
+- Orchestrator runs `bd close` after merging each agent's work
+
+### Parallel-Specific Commands
+```bash
+# Query parallel tracks
+bv --robot-plan --json
+
+# Example response structure:
+{
+  "plan": {
+    "tracks": [
+      {"track_id": "track-A", "items": [{"id": "bd-123", "unblocks": ["bd-124"]}]}
+    ],
+    "summary": {"highest_impact": "bd-123", "total_actionable": 10}
+  }
+}
+```
+
+### Cross-Phase Parallelism
+The `parallel_analysis` in `metadata.json` enables optimized execution:
+- Task 2.1 can start when only its specific dependency (1.1) completes
+- Doesn't wait for all of Phase 1 if not required
+- Beads tracks these fine-grained dependencies
 
 ## Data Synchronization
 

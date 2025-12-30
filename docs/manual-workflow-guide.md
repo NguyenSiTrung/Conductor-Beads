@@ -60,6 +60,7 @@ flowchart TD
 | Workflow | Commands |
 |----------|----------|
 | **Standard** | `setup` → `bd init` → `newtrack` → `implement` → `archive` |
+| **Parallel Execution** | `setup` → `bd init` → `newtrack` → `implement-parallel` → `archive` |
 | **Multi-Section** | `implement` → `handoff` → *(new session)* → `implement` |
 | **Session Resume** | `bd ready` → `bd show --notes` → `implement` |
 | **Blocked Task** | `block` → `skip` or wait → continue |
@@ -292,6 +293,79 @@ Step 8: Track completion
 - `[x]` - Completed (with commit SHA)
 - `[!]` - Blocked (with reason)
 - `[-]` - Skipped (with reason)
+
+---
+
+### 3a. `/conductor-implement-parallel` (or `/conductor:implementParallel`)
+
+**Purpose**: Execute tasks in parallel using multiple sub-agents.
+
+**When to use**: 
+- Track has 3+ independent tasks
+- Tasks touch different files (no overlap)
+- Want faster execution with concurrent agents
+
+**Prerequisites**:
+- `bv` (Beads Viewer) for parallel track detection
+- MCP Agent Mail running (`am` command)
+- `bd` (Beads CLI) for task tracking
+
+**Manual workflow**:
+
+```
+Step 1: Start MCP Agent Mail server
+   am
+
+Step 2: Run the command
+   /conductor-implement-parallel auth_20241229
+   # or with options
+   /conductor-implement-parallel auth_20241229 --max-agents=3 --dry-run
+
+Step 3: Review parallel plan
+   - Shows batches of tasks that can run simultaneously
+   - Displays file affinity analysis
+   - Confirms no file conflicts
+
+Step 4: Parallel execution
+   - Orchestrator spawns sub-agents via Task tool
+   - Each agent works in isolated git worktree
+   - File leases prevent concurrent edits
+
+Step 5: Monitor and merge
+   - Orchestrator waits for agent completion
+   - Merges completed work into integration branch
+   - Runs integration tests
+   - Updates plan.md and Beads
+
+Step 6: Batch progression
+   - Continue until all batches complete
+   - Phase checkpoints at phase boundaries
+
+Step 7: Finalization
+   - Merge integration branch to main
+   - Clean up worktrees and branches
+   - Update tracks.md status
+```
+
+**State file**: `conductor/tracks/<track_id>/implement_parallel_state.json`
+```json
+{
+  "mode": "parallel",
+  "started_at": "2024-12-29T10:00:00Z",
+  "max_agents": 3,
+  "current_batch": 1,
+  "agents": {
+    "GreenCastle": {
+      "task_id": "bd-123",
+      "status": "running",
+      "worktree": "worktrees/auth_20241229/phase1_task1"
+    }
+  },
+  "integration_branch": "track/auth_20241229/integration"
+}
+```
+
+**Resume**: If interrupted, run with `--resume` flag.
 
 ---
 
@@ -653,6 +727,7 @@ bd show <task-id> --notes
 | `beads.json` | Beads integration config | `conductor/` |
 | `refresh_state.json` | Refresh progress | `conductor/` |
 | `implement_state.json` | Phase-aware implementation resume | `conductor/tracks/<id>/` |
+| `implement_parallel_state.json` | Parallel execution state | `conductor/tracks/<id>/` |
 | `metadata.json` | Track configuration + Beads epic ID | `conductor/tracks/<id>/` |
 | `blockers.md` | Block history log | `conductor/tracks/<id>/` |
 | `skipped.md` | Skipped tasks log | `conductor/tracks/<id>/` |
@@ -697,3 +772,6 @@ bd show <task-id> --notes
 | Beads not syncing | Check `conductor/beads.json` has `enabled: true` |
 | Lost context after compaction | Use `bd show <id> --notes` to recover |
 | bd command fails | Conductor continues without Beads (graceful degradation) |
+| Parallel execution stalls | Check worktrees with `git worktree list`, clean up with `/conductor-validate` |
+| Orphan worktrees after parallel | Run `/conductor-validate` to detect and fix |
+| MCP Agent Mail not available | Fallback to sequential mode or start with `am` |

@@ -289,6 +289,154 @@ A task is complete when:
 8. Changes committed with proper message
 9. Git note with task summary attached to the commit
 
+## Parallel Task Workflow (Orchestrated Mode)
+
+When using `/conductor-implement-parallel`, the workflow adapts for multi-agent execution:
+
+### Prerequisites
+
+| Tool | Purpose | Installation |
+|------|---------|--------------|
+| `bd` (Beads CLI) | Task tracking, dependencies | `go install github.com/steveyegge/beads/cmd/bd@latest` |
+| `bv` (Beads Viewer) | Parallel track planning | See [beads_viewer](https://github.com/Dicklesworthstone/beads_viewer) |
+| MCP Agent Mail | Agent coordination, file leases | `curl -fsSL https://raw.githubusercontent.com/Dicklesworthstone/mcp_agent_mail/main/install.sh \| bash` |
+
+### Orchestrator Responsibilities
+
+The main agent (Orchestrator) handles all coordination:
+
+- **Task Selection**: Uses `bv --robot-plan` to identify independent parallel tracks
+- **File Lease Management**: Requests exclusive leases via MCP Agent Mail before spawning agents
+- **Plan Updates**: Only the Orchestrator modifies `plan.md` status markers
+- **Beads Sync**: Only the Orchestrator runs `bd update` and `bd close` commands
+- **Merge Operations**: Merges completed agent work into integration branch
+- **Phase Checkpoints**: Creates checkpoint commits after batch completion
+
+### Sub-Agent Responsibilities
+
+Task agents work in isolated environments:
+
+- **Execute TDD Workflow**: Standard Red → Green → Refactor within assigned task
+- **Respect File Leases**: Only modify files explicitly leased to them
+- **Work in Worktree**: All changes happen in isolated git worktree/branch
+- **Report Results**: Return structured JSON with status, commit SHA, files modified
+- **Never Modify Control Files**: Do NOT touch `plan.md`, `metadata.json`, or run `bd` commands
+
+### File Access Rules
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         FILE LEASE PROTOCOL                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. Orchestrator requests lease BEFORE spawning agent                   │
+│     → file_reservation_paths(paths, exclusive=true, reason="bd-###")    │
+│                                                                          │
+│  2. If file already leased by another agent:                            │
+│     → Task queued for next batch (no conflict)                          │
+│                                                                          │
+│  3. Agent receives lease list in spawn prompt                           │
+│     → May ONLY modify files in that list                                │
+│                                                                          │
+│  4. Pre-commit hook enforces compliance                                 │
+│     → Commit rejected if agent touches non-leased files                 │
+│                                                                          │
+│  5. Orchestrator releases lease after merge                             │
+│     → release_file_reservations() on task completion                    │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Default Access:**
+- Shared utilities (`/lib`, `/test/util`) are read-only unless explicitly leased
+- Exclusive write requires explicit lease grant
+- Leases have TTL (default: 1 hour) with renewal support
+
+### Git Worktree Strategy
+
+Each sub-agent works in an isolated git worktree:
+
+```bash
+# Orchestrator creates worktree for each task
+git worktree add worktrees/<track_id>/<task_key> -b track/<track_id>/<task_key>
+
+# Agent works in isolation
+cd worktrees/<track_id>/<task_key>
+# ... TDD workflow ...
+git commit -m "feat(auth): Implement login [Task-Id: bd-123]"
+
+# Orchestrator merges after task_complete
+git checkout track/<track_id>/integration
+git merge track/<track_id>/<task_key> --no-ff
+```
+
+### Parallel Execution Flow
+
+```
+                    ┌─────────────────────────────┐
+                    │       ORCHESTRATOR          │
+                    │  (owns plan.md & Beads)     │
+                    └─────────────┬───────────────┘
+                                  │
+            ┌─────────────────────┼─────────────────────┐
+            ▼                     ▼                     ▼
+    ┌───────────────┐     ┌───────────────┐     ┌───────────────┐
+    │  GreenCastle  │     │   BlueLake    │     │  RedMountain  │
+    │  (Agent 1)    │     │  (Agent 2)    │     │  (Agent 3)    │
+    │               │     │               │     │               │
+    │  Task bd-123  │     │  Task bd-124  │     │  Task bd-125  │
+    │  worktree/t1  │     │  worktree/t2  │     │  worktree/t3  │
+    └───────┬───────┘     └───────┬───────┘     └───────┬───────┘
+            │                     │                     │
+            └─────────────────────┴─────────────────────┘
+                                  │
+                                  ▼
+                    ┌─────────────────────────────┐
+                    │     Integration Branch      │
+                    │  (merged by Orchestrator)   │
+                    └─────────────────────────────┘
+```
+
+### TDD in Parallel Mode
+
+| Step | Sequential Mode | Parallel Mode |
+|------|-----------------|---------------|
+| Select Task | Agent reads plan.md | Orchestrator assigns via Task tool |
+| Mark In Progress | Agent edits plan.md | Orchestrator edits after spawn |
+| Write Tests (Red) | Direct file access | Within leased files only |
+| Implement (Green) | Direct file access | Within leased files only |
+| Commit | Direct to branch | To worktree branch |
+| Update plan.md | Agent edits | Orchestrator edits after merge |
+| Beads update | Agent calls `bd` | Orchestrator calls `bd` |
+
+### Error Recovery
+
+| Scenario | Detection | Recovery |
+|----------|-----------|----------|
+| Agent stall | No response 10 min | Rollback worktree, reassign |
+| Merge conflict | Git merge fails | Create resolution task |
+| Test failure | Agent reports | Retry (2x), then block |
+| Lease violation | Pre-commit hook | Agent requests proper lease |
+| MCP server down | Connection refused | Fallback to sequential |
+
+### State Persistence
+
+Parallel execution state is saved to `implement_parallel_state.json`:
+
+```json
+{
+  "mode": "parallel",
+  "current_batch": 2,
+  "agents": {
+    "GreenCastle": {"task_id": "bd-123", "status": "complete"},
+    "BlueLake": {"task_id": "bd-124", "status": "running"}
+  },
+  "integration_branch": "track/auth_20241229/integration"
+}
+```
+
+This enables resume after interruption with `/conductor-implement-parallel --resume`.
+
 ## Emergency Procedures
 
 ### Critical Bug in Production

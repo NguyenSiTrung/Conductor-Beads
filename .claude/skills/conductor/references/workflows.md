@@ -9,6 +9,7 @@ Context-Driven Development for Claude Code. Measure twice, code once.
 - [Workflow: Setup](#workflow-setup)
 - [Workflow: New Track](#workflow-new-track)
 - [Workflow: Implement](#workflow-implement)
+- [Workflow: Implement Parallel](#workflow-implement-parallel)
 - [Workflow: Status](#workflow-status)
 - [Workflow: Revert](#workflow-revert)
 - [Workflow: Validate](#workflow-validate)
@@ -37,6 +38,7 @@ Context-Driven Development for Claude Code. Measure twice, code once.
 | `/conductor-setup` | Initialize project with product.md, tech-stack.md, workflow.md |
 | `/conductor-newtrack [description]` | Create a new feature/bug track with spec and plan |
 | `/conductor-implement [track_id]` | Execute tasks from track's plan following TDD workflow |
+| `/conductor-implement-parallel [track_id]` | Execute tasks in parallel with multiple sub-agents |
 | `/conductor-status` | Display progress overview |
 | `/conductor-revert` | Git-aware revert of tracks, phases, or tasks |
 | `/conductor-validate` | Run validation checks on project structure and state |
@@ -430,6 +432,70 @@ When all tasks done:
    ```
 3. Ask user: Archive, Delete, or Keep the track folder?
 4. Announce completion
+
+---
+
+## Workflow: Implement Parallel
+
+**Trigger:** `/conductor-implement-parallel [track_id] [--max-agents=N] [--dry-run]`
+
+Execute tasks in parallel using multiple sub-agents for faster execution.
+
+### Prerequisites
+
+| Tool | Purpose | Check |
+|------|---------|-------|
+| `bd` | Task tracking | `which bd` |
+| `bv` | Parallel planning | `which bv` |
+| MCP Agent Mail | Coordination | `am` to start |
+
+### 1. Setup Check
+Same as standard implement, plus verify parallel prerequisites.
+
+### 2. Track Selection
+Same as standard implement.
+
+### 3. Parallel Planning
+1. Query `bv --robot-plan --json` for independent task tracks
+2. Use `parallel_analysis` from metadata.json if available
+3. Display proposed batches with file affinity
+4. If `--dry-run`: Show plan and halt
+
+### 4. Orchestrator Initialization
+1. Create `implement_parallel_state.json`
+2. Register as Orchestrator via MCP Agent Mail
+3. Create integration branch: `git checkout -b track/<track_id>/integration`
+4. Update track status to `[~]`
+
+### 5. Parallel Execution Loop
+
+For each batch:
+1. Select ready tasks (up to max_agents)
+2. For each task:
+   - Request file leases via MCP Agent Mail
+   - Create git worktree: `git worktree add worktrees/<track_id>/<task_key>`
+   - Spawn sub-agent via Task tool with:
+     - Task description and context
+     - List of leased files
+     - TDD workflow instructions
+     - JSON response format requirement
+3. Wait for agent completion
+4. Handle results:
+   - **Complete**: Merge to integration branch, update plan.md, close Beads task
+   - **Blocked**: Mark `[!]`, log blocker
+   - **Failed**: Retry 2x, then block
+
+### 6. Finalization
+1. Merge integration branch to main
+2. Clean up worktrees and branches
+3. Delete parallel state file
+4. Update tracks.md: `[~]` → `[x]`
+
+### Resume Protocol
+If `implement_parallel_state.json` exists, offer:
+- Resume from current state
+- Abort and restart
+- Switch to sequential mode
 
 ---
 
@@ -1442,6 +1508,7 @@ If a `bd` command fails unexpectedly:
 | `conductor/tracks/<id>/spec.md` | Requirements |
 | `conductor/tracks/<id>/plan.md` | Phased task list |
 | `conductor/tracks/<id>/implement_state.json` | Implementation resume state (phase-aware) |
+| `conductor/tracks/<id>/implement_parallel_state.json` | Parallel execution state (agents, batches, worktrees) |
 | `conductor/tracks/<id>/blockers.md` | Block history log |
 | `conductor/tracks/<id>/skipped.md` | Skipped tasks log |
 | `conductor/tracks/<id>/revisions.md` | Revision history log |

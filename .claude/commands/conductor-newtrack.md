@@ -126,6 +126,111 @@ Create a new track for: $ARGUMENTS
 
 ---
 
+### 2.3a Parallel Execution Analysis (For `implement-parallel` support)
+
+**PROTOCOL: Auto-analyze task dependencies and file affinity for parallel execution.**
+
+1. **Auto-Analyze (Default):**
+   
+   The agent AUTOMATICALLY analyzes the plan to determine parallelization:
+
+   a. **Infer File Affinity:**
+      - For each task, analyze description + spec context
+      - Use naming patterns to estimate files:
+        - "Implement login endpoint" → `["src/auth/login.ts", "src/auth/login.test.ts"]`
+        - "Create user model" → `["src/models/user.ts", "src/models/user.test.ts"]`
+        - "Add validation utils" → `["src/utils/validation.ts"]`
+      
+   b. **Infer Dependencies (Two Levels):**
+      
+      **Intra-Phase (within same phase):**
+      - **Default Rule:** Tasks in same phase are INDEPENDENT (can parallelize)
+      - **Auto-detect sequential patterns:**
+        - "Create X" before "Use X" → dependency
+        - Shared file references → potential conflict
+      
+      **Cross-Phase (between phases):**
+      - **Default Rule:** Each phase task depends on ALL previous phase tasks
+      - **Optimized Rule (recommended):** Detect SPECIFIC cross-phase dependencies
+        - If Phase 2 Task 1 only uses output from Phase 1 Task 1:
+          - 2.1 depends on 1.1 only (not 1.2, 1.3)
+          - 2.1 can START while 1.2 and 1.3 are still running!
+      
+   c. **Compute `can_parallel_with`:**
+      - Tasks with no dependency (intra OR cross-phase) AND no file overlap → can parallelize
+      - This can include tasks from DIFFERENT phases!
+
+2. **Display Analysis for Confirmation:**
+   > "📊 **Parallel Execution Analysis (auto-detected):**"
+   > 
+   > **Parallelization Model:** Cross-phase enabled
+   > 
+   > | Task | Phase | Depends On | Can Parallel With |
+   > |------|-------|------------|-------------------|
+   > | 1.1 Create user model | 1 | — | 1.2, 1.3 |
+   > | 1.2 Implement login | 1 | — | 1.1, 1.3, 2.2 |
+   > | 1.3 Add validation | 1 | — | 1.1, 1.2 |
+   > | 2.1 Add auth middleware | 2 | 1.1 | 2.2 |
+   > | 2.2 Create API routes | 2 | 1.2 | 1.3, 2.1 |
+   > 
+   > **Execution Timeline (3 agents):**
+   > ```
+   > Agent 1: [1.1] ──────> [2.1] ────>
+   > Agent 2: [1.2] ──────> [2.2] ────>
+   > Agent 3: [1.3] ──────>
+   > ```
+   > 
+   > "Does this look correct? (yes / or describe corrections)"
+
+3. **Handle User Corrections:**
+   - If user says "yes" or skips: Save as-is
+   - If user provides corrections (e.g., "2.1 actually needs both 1.1 and 1.2"):
+     - Update `depends_on_tasks` for affected tasks
+     - Recalculate `can_parallel_with`
+
+4. **Store in Metadata:**
+   Add to `conductor/tracks/<track_id>/metadata.json`:
+   ```json
+   {
+     "parallel_analysis": {
+       "enabled": true,
+       "analyzed_at": "<timestamp>",
+       "method": "auto",
+       "cross_phase": true,
+       "tasks": {
+         "phase1_task1": {
+           "estimated_files": ["src/models/user.ts"],
+           "depends_on_tasks": [],
+           "can_parallel_with": ["phase1_task2", "phase1_task3"]
+         },
+         "phase1_task2": {
+           "estimated_files": ["src/auth/login.ts"],
+           "depends_on_tasks": [],
+           "can_parallel_with": ["phase1_task1", "phase1_task3", "phase2_task2"]
+         },
+         "phase2_task1": {
+           "estimated_files": ["src/middleware/auth.ts"],
+           "depends_on_tasks": ["phase1_task1"],
+           "can_parallel_with": ["phase1_task2", "phase1_task3", "phase2_task2"]
+         },
+         "phase2_task2": {
+           "estimated_files": ["src/routes/api.ts"],
+           "depends_on_tasks": ["phase1_task2"],
+           "can_parallel_with": ["phase1_task1", "phase1_task3", "phase2_task1"]
+         }
+       }
+     }
+   }
+   ```
+
+5. **Parallelization Modes:**
+   User can choose:
+   - **Conservative:** Phase-by-phase (Phase 2 waits for ALL of Phase 1)
+   - **Optimized (default):** Cross-phase with specific dependencies
+   - **Skip:** No parallel analysis
+
+---
+
 ### 2.4 Create Track Artifacts and Update Main Plan
 
 1. **Check for Duplicate Track Name:**
@@ -239,9 +344,19 @@ Create a new track for: $ARGUMENTS
      ```
 
 4. **Set Up Dependencies:**
-   - Phase 2 blocked by Phase 1: `bd dep add <phase2_id> <phase1_id>`
-   - Task dependencies within phases: `bd dep add <task2_id> <task1_id>`
-   - Continue for all phases
+   
+   a. **Phase Dependencies (sequential by default):**
+      - Phase 2 blocked by Phase 1: `bd dep add <phase2_id> <phase1_id>`
+      - Continue for all phases
+   
+   b. **Intra-Phase Task Dependencies (from parallel analysis):**
+      - If `parallel_analysis` exists in metadata.json:
+        - For each task with `depends_on_tasks` not empty:
+          ```bash
+          # If phase1_task3 depends on phase1_task1:
+          bd dep add <phase1_task3_beads_id> <phase1_task1_beads_id>
+          ```
+      - This enables `bv --robot-plan` to correctly identify parallel groups
 
 5. **Update Metadata:**
    - Add to `conductor/tracks/<track_id>/metadata.json`:

@@ -174,7 +174,19 @@ Revert Conductor work: $ARGUMENTS
      - Remove commit SHAs from reverted task lines
    - If not correct, perform file edit to fix and commit correction
 
-4. **Announce Completion:**
+4. **Clean Up Parallel State (if applicable):**
+   - Check if `implement_parallel_state.json` exists for this track
+   - If reverting tasks that were run in parallel:
+     - Remove associated worktrees: `git worktree remove worktrees/<track_id>/<task_key>`
+     - Delete task branches: `git branch -d track/<track_id>/<task_key>`
+     - Remove task entries from parallel state file
+   - If reverting entire track in parallel mode:
+     - Remove all track worktrees
+     - Delete integration branch: `git branch -d track/<track_id>/integration`
+     - Delete `implement_parallel_state.json`
+   - Release any file leases via MCP Agent Mail (if active)
+
+5. **Announce Completion:**
    > "Revert complete. [Target] has been reverted. Plan is synchronized."
    > "Status markers reset to pending. [X] commits reverted."
 

@@ -154,6 +154,7 @@ Enable integration via `conductor/beads.json`:
 | `/conductor-setup` | `bd init` | Initialize Beads in project |
 | `/conductor-newtrack` | `bd create` (epic + tasks) | Create epic with linked tasks |
 | `/conductor-implement` | `bd ready` → `bd update` → `bd done` | Get next task, track progress, complete |
+| `/conductor-implement-parallel` | `bv --robot-plan` → `bd close` | Query parallel tracks, Orchestrator updates Beads |
 | `/conductor-status` | `bd ready`, `bd show` | Show available tasks, epic status |
 | `/conductor-block` | `bd update --status blocked` | Mark task blocked with reason |
 | `/conductor-skip` | `bd update --status skipped` | Skip task with justification |

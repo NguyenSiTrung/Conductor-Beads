@@ -37,6 +37,7 @@ Conductor-Beads/
 | `/conductor:setup` | `/conductor-setup` | Initialize project with context files and first track |
 | `/conductor:newTrack` | `/conductor-newtrack` | Create feature/bug track with spec and plan |
 | `/conductor:implement` | `/conductor-implement` | Execute tasks from track's plan (TDD workflow) |
+| `/conductor:implementParallel` | `/conductor-implement-parallel` | Execute tasks in parallel with sub-agents |
 | `/conductor:status` | `/conductor-status` | Display progress overview |
 | `/conductor:revert` | `/conductor-revert` | Git-aware revert of tracks, phases, or tasks |
 | `/conductor:validate` | `/conductor-validate` | Validate project integrity and fix issues |

@@ -38,7 +38,43 @@ For each `plan.md`:
 - Valid markers only: `[ ]`, `[~]`, `[x]`, `[!]`
 - Completed tracks should have all tasks completed
 
-## 6. Report
+## 6. State Files Check
+
+For each track, verify state files:
+- `implement_state.json` - valid JSON, consistent phase/task index
+- `implement_parallel_state.json` - if exists:
+  - Valid JSON structure
+  - Referenced worktrees exist: `git worktree list`
+  - Integration branch exists if mode is "parallel"
+  - No stale agents (started_at > 24 hours)
+
+## 7. Parallel Execution Check
+
+For tracks with `implement_parallel_state.json`:
+
+1. **Worktree Integrity:**
+   - List worktrees: `git worktree list`
+   - Verify each task worktree in state file exists
+   - Report orphan worktrees not in state file
+
+2. **Branch Consistency:**
+   - Integration branch `track/<track_id>/integration` exists
+   - Task branches match state file entries
+
+3. **Add to Report:**
+   ```
+   ### Parallel Execution State
+   - [✓] auth_20241229 - Parallel mode, 2 agents active
+   - [⚠] profile_20241230 - Stale worktree detected
+   - [✗] old_track - Orphan integration branch
+   ```
+
+4. **Auto-Fix Options:**
+   - Remove orphan worktrees
+   - Clean up stale integration branches
+   - Reset parallel state file
+
+## 8. Report
 
 Present summary with:
 - ✅ Valid items
@@ -46,16 +82,17 @@ Present summary with:
 - ❌ Errors
 - Recommendations for fixes
 
-## 7. Auto-Fix Option
+## 9. Auto-Fix Option
 
 Offer to fix auto-fixable issues:
 - Missing metadata fields
 - Status mismatches
 - Orphan cleanup
+- Orphan worktrees and branches (parallel mode)
 
 ---
 
-## 8. BEADS VALIDATION
+## 10. BEADS VALIDATION
 
 **PROTOCOL: Include Beads consistency checks.**
 

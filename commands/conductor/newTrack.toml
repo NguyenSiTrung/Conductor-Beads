@@ -105,7 +105,49 @@ CRITICAL: You must validate the success of every tool call. If any tool call fai
     > "Does this plan look correct and cover all the necessary steps based on the spec and our workflow? Please suggest any changes or confirm."
     Await user feedback and revise the `plan.md` content until confirmed.
 
-### 2.4 Create Track Artifacts and Update Main Plan
+    ### 2.3a Parallel Execution Analysis (For `implementParallel` support)
+
+    **PROTOCOL: Auto-analyze task dependencies and file affinity for parallel execution.**
+
+    1. **Auto-Analyze (Default):**
+       
+       The agent AUTOMATICALLY analyzes the plan to determine parallelization:
+
+       a. **Infer File Affinity:**
+          - For each task, analyze description + spec context
+          - Use naming patterns to estimate files:
+            - "Implement login endpoint" → `["src/auth/login.ts"]`
+            - "Create user model" → `["src/models/user.ts"]`
+
+       b. **Infer Dependencies:**
+          - **Default Rule:** Tasks in same phase are INDEPENDENT (can parallelize)
+          - **Auto-detect sequential patterns:**
+            - "Create X" before "Use X" → dependency
+            - Shared file references → potential conflict
+
+       c. **Compute `can_parallel_with`:**
+          - Tasks with no inferred dependency AND no file overlap → can parallelize
+
+    2. **Display Analysis for Confirmation:**
+       > "📊 **Parallel Execution Analysis (auto-detected):**"
+       > [Table showing tasks, files, parallel groups]
+       > "Does this look correct? (yes / or describe corrections)"
+
+    3. **Handle User Corrections:**
+       - If user says "yes" or skips: Save as-is
+       - If user provides corrections: Update dependencies, recalculate groups
+
+    4. **Store in Metadata:**
+       Add `parallel_analysis` object to `metadata.json` with:
+       - `enabled`: true
+       - `method`: "auto"
+       - `tasks`: mapping of task keys to {estimated_files, depends_on_tasks, can_parallel_with}
+
+    5. **Skip Option:**
+       - If user says "skip parallel analysis": set `enabled: false`
+       - Can still analyze at runtime with `/conductor:implementParallel`
+
+    ### 2.4 Create Track Artifacts and Update Main Plan
 
 1.  **Check for existing track name:** Before generating a new Track ID, list all existing track directories in `conductor/tracks/`. Extract the short names from these track IDs (e.g., ``shortname_YYYYMMDD`` -> `shortname`). If the proposed short name for the new track (derived from the initial description) matches an existing short name, halt the `newTrack` creation. Explain that a track with that name already exists and suggest choosing a different name or resuming the existing track.
 2.  **Generate Track ID:** Create a unique Track ID (e.g., ``shortname_YYYYMMDD``).

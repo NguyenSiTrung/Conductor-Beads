@@ -49,6 +49,33 @@ For each track's `plan.md`:
 ### 2.6 State Files Check
 1. Check `conductor/setup_state.json` if exists - verify valid JSON
 2. Check each `conductor/tracks/<track_id>/implement_state.json` if exists - verify valid JSON
+3. Check each `conductor/tracks/<track_id>/implement_parallel_state.json` if exists:
+   - Verify valid JSON structure
+   - Verify referenced worktrees exist: `git worktree list`
+   - Verify integration branch exists if mode is "parallel"
+   - Check for stale agent entries (started_at > 24 hours)
+
+### 2.7 Parallel Execution Check
+
+For tracks with `implement_parallel_state.json`:
+1. **Worktree Integrity:**
+   - List worktrees: `git worktree list`
+   - Verify each task worktree in state file exists
+   - Report orphan worktrees not in state file
+2. **Branch Consistency:**
+   - Integration branch `track/<track_id>/integration` exists
+   - Task branches match state file entries
+3. **Add to Report:**
+   ```
+   ### Parallel Execution State
+   - [✓] auth_20241229 - Parallel mode, 2 agents active
+   - [⚠] profile_20241230 - Stale worktree detected
+   - [✗] old_track - Orphan integration branch
+   ```
+4. **Auto-Fix Options:**
+   - Remove orphan worktrees
+   - Clean up stale integration branches
+   - Reset parallel state file
 
 ---
 

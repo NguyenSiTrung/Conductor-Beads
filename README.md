@@ -189,6 +189,32 @@ The workflow:
 4. **Track progress** - Updates plan.md and Beads status
 5. **Verify** - Manual verification at phase boundaries
 
+### Parallel Execution (New!)
+
+For tracks with multiple independent tasks, use parallel mode for faster execution:
+
+```bash
+# Claude Code
+/conductor-implement-parallel auth_track --max-agents=3
+
+# Gemini CLI
+/conductor:implementParallel auth_track
+```
+
+**Prerequisites for parallel mode:**
+- `bv` (Beads Viewer) - for parallel track detection
+- MCP Agent Mail - for agent coordination (`am` to start)
+- `bd` (Beads CLI) - for task tracking
+
+**How it works:**
+1. Orchestrator queries `bv --robot-plan` to identify independent tasks
+2. Requests file leases via MCP Agent Mail
+3. Spawns sub-agents in isolated git worktrees
+4. Merges completed work into integration branch
+5. Updates plan.md and Beads after each completion
+
+See [docs/parallel-execution-design.md](docs/parallel-execution-design.md) for architecture details.
+
 ### Checking Status
 
 ```bash
@@ -213,6 +239,7 @@ Shows:
 | `/conductor:setup` | `/conductor-setup` | Initialize project context |
 | `/conductor:newTrack` | `/conductor-newtrack` | Create feature/bug track |
 | `/conductor:implement` | `/conductor-implement` | Execute tasks from plan |
+| `/conductor:implementParallel` | `/conductor-implement-parallel` | Execute tasks in parallel with sub-agents |
 | `/conductor:status` | `/conductor-status` | Show progress overview |
 | `/conductor:revert` | `/conductor-revert` | Git-aware revert |
 | `/conductor:validate` | `/conductor-validate` | Validate project integrity |
