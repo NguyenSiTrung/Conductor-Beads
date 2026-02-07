@@ -1,0 +1,26 @@
+{
+  "name": "conductor",
+  "version": "0.1.0",
+  "displayName": "Conductor-Beads",
+  "description": "Context-driven development toolkit combining structured planning with persistent memory. Spec → Plan → Implement with Conductor and persistent Beads memory.",
+  "author": "Conductor-Beads Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NilusvanEdel/Conductor-Beads-Copilot"
+  },
+  "capabilities": {
+    "skills": true,
+    "commands": true,
+    "agents": false,
+    "mcp": false
+  },
+  "skillsPath": "skills",
+  "commandsPath": "commands",
+  "minimumVersion": "5.4.0",
+  "metadata": {
+    "category": "development-workflow",
+    "tags": ["planning", "tdd", "context-driven", "task-tracking", "beads"],
+    "homepage": "https://github.com/NilusvanEdel/Conductor-Beads-Copilot"
+  }
+}

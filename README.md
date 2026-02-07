@@ -19,6 +19,7 @@ Together, they enable AI agents to manage long-horizon development tasks without
 
 - **Gemini CLI** - via extension commands (TOML)
 - **Claude Code** - via slash commands and skills
+- **GitHub CLI** (v5.4+) - via plugin system
 - **Agent Skills compatible CLIs** - via skills specification
 
 ---
@@ -94,6 +95,21 @@ cp -r Conductor-Beads/.claude/skills/conductor your-project/.claude/skills/
 ```bash
 gemini extensions install https://github.com/NguyenSiTrung/Conductor-Beads --auto-update
 ```
+
+### GitHub CLI (v5.4+)
+
+```bash
+# From GitHub repository (requires push access for your fork)
+gh plugin install https://github.com/NilusvanEdel/Conductor-Beads-Copilot
+
+# From local directory (development/testing)
+gh plugin install ./path/to/conductor-beads-copilot
+
+# Verify installation
+gh conductor-setup --help
+```
+
+For detailed GitHub CLI plugin setup, see [GITHUB_CLI_PLUGIN.md](GITHUB_CLI_PLUGIN.md).
 
 ---
 
